@@ -275,11 +275,9 @@ class MinimaxPlayer(IsolationPlayer):
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
 
-        # TODO: finish this function!
-        # Create a counter to limit the depth of the search
-        depth_counter = 0   
+        # TODO: finish this function!   
         
-        def min_value(game_state, depth_counter):
+        def min_value(game_state, depth):
             """ Return the value for a win (the self.score heuristic) if the game is over or
             if the depth of the search is reached. Otherwise return the minimum value over all
             legal child nodes.
@@ -291,20 +289,16 @@ class MinimaxPlayer(IsolationPlayer):
             if self.time_left() < self.TIMER_THRESHOLD:
                 raise SearchTimeout()
             
-            depth_counter += 1
-            
-            # Return the score heuristic if the active player wins or the search depth is reached
-            if game_state.is_winner(game_state.active_player) or depth_counter == depth:
-                # Reset the depth counter to 0 for the next move forecast
-                depth_counter = 0
-                return self.score(game_state, game_state.inactive_player)
+            # Return the score heuristic if there are no legal moves or the search depth is reached
+            if not game_state.get_legal_moves() or depth == 0:
+                return self.score(game_state, self)
             
             value = float("inf")            
             for m in game_state.get_legal_moves():
-                value = min(value, max_value(game_state.forecast_move(m), depth_counter))
+                value = min(value, max_value(game_state.forecast_move(m), depth-1))
             return value
         
-        def max_value(game_state, depth_counter):
+        def max_value(game_state, depth):
             """ Return the value for a loss (the self.score heuristic) if the game is over or
             if the depth of the search is reached. Otherwise return the maximum value over all
             legal child nodes.
@@ -316,24 +310,20 @@ class MinimaxPlayer(IsolationPlayer):
             if self.time_left() < self.TIMER_THRESHOLD:
                 raise SearchTimeout()
             
-            depth_counter += 1
-            
             # Return the score heuristic if the active player losses or the search depth reached                
-            if game_state.is_loser(game_state.active_player) or depth_counter == depth:
-                # Reset the depth counter to 0 for the next move forecast
-                depth_counter = 0
-                return self.score(game_state, game_state.active_player)            
+            if not game_state.get_legal_moves() or depth == 0:
+                return self.score(game_state, self)            
             
             value = float("-inf")            
             for m in game_state.get_legal_moves():
-                value = max(value, min_value(game_state.forecast_move(m), depth_counter))
+                value = max(value, min_value(game_state.forecast_move(m), depth-1))
             return value
 
         # Return (-1, -1) if there are no legal moves
         if not game.get_legal_moves():
             return (-1, -1)
         
-        return max(game.get_legal_moves(), key=lambda m: min_value(game.forecast_move(m), depth_counter))  
+        return max(game.get_legal_moves(), key=lambda m: min_value(game.forecast_move(m), depth-1))  
 
 
 class AlphaBetaPlayer(IsolationPlayer):
@@ -445,7 +435,7 @@ class AlphaBetaPlayer(IsolationPlayer):
         # TODO: finish this function!
 
         
-        def max_value(game_state, depth_counter, alpha, beta):
+        def max_value(game_state, depth, alpha, beta):
             """ Return the value for a loss (the self.score heuristic) if the game is over or
             if the depth of the search is reached. Otherwise return the maximum value over all
             legal child nodes.
@@ -457,21 +447,19 @@ class AlphaBetaPlayer(IsolationPlayer):
             if self.time_left() < self.TIMER_THRESHOLD:
                 raise SearchTimeout()
             
-            depth_counter += 1
-            
-            # Return the score heuristic if the active player losses or the search depth reached                
-            if game_state.is_loser(game_state.active_player) or depth_counter == depth:
-                return self.score(game_state, game_state.active_player)            
+            # Return the score heuristic if there are no legal moves or the search depth reached                
+            if not game_state.get_legal_moves() or depth == 0:
+                return self.score(game_state, self)            
             
             value = float("-inf")            
             for m in game_state.get_legal_moves():
-                value = max(value, min_value(game_state.forecast_move(m), depth_counter, alpha, beta))
+                value = max(value, min_value(game_state.forecast_move(m), depth-1, alpha, beta))
                 if value >= beta:
                     return value
                 alpha = max(alpha, value)
             return value
         
-        def min_value(game_state, depth_counter, alpha, beta):
+        def min_value(game_state, depth, alpha, beta):
             """ Return the value for a win (the self.score heuristic) if the game is over or
             if the depth of the search is reached. Otherwise return the minimum value over all
             legal child nodes.
@@ -483,15 +471,13 @@ class AlphaBetaPlayer(IsolationPlayer):
             if self.time_left() < self.TIMER_THRESHOLD:
                 raise SearchTimeout()
             
-            depth_counter += 1
-            
-            # Return the score heuristic if the active player wins or the search depth is reached
-            if game_state.is_winner(game_state.active_player) or depth_counter == depth:
-                return self.score(game_state, game_state.inactive_player)
+            # Return the score heuristic if there are no legal moves or the search depth is reached
+            if not game_state.get_legal_moves() or depth == 0:
+                return self.score(game_state, self)
             
             value = float("inf")                        
             for m in game_state.get_legal_moves():
-                value = min(value, max_value(game_state.forecast_move(m), depth_counter, alpha, beta))
+                value = min(value, max_value(game_state.forecast_move(m), depth-1, alpha, beta))
                 if value <= alpha:
                     return value
                 beta = min(beta, value)
@@ -505,9 +491,7 @@ class AlphaBetaPlayer(IsolationPlayer):
         best_score = float("-inf")
         best_move = None
         for move in game.get_legal_moves():
-            # Set the depth counter
-            depth_counter = 0
-            value = min_value(game.forecast_move(move), depth_counter, alpha, beta)
+            value = min_value(game.forecast_move(move), depth-1, alpha, beta)
             if value > best_score:
                 best_score = value
                 best_move = move
