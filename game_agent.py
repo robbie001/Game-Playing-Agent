@@ -319,11 +319,20 @@ class MinimaxPlayer(IsolationPlayer):
                 value = max(value, min_value(game_state.forecast_move(m), depth-1))
             return value
 
-        # Return (-1, -1) if there are no legal moves
+        # Return (-1, -1) if there are no legal moves 
         if not game.get_legal_moves():
             return (-1, -1)
         
-        return max(game.get_legal_moves(), key=lambda m: min_value(game.forecast_move(m), depth-1))  
+        # Set best move to to first legal move
+        best_move = game.get_legal_moves()[0]
+        
+        try:
+            best_move = max(game.get_legal_moves(), key=lambda m: min_value(game.forecast_move(m), depth-1))
+            return best_move
+        except SearchTimeout:
+            return best_move
+        
+        #return max(game.get_legal_moves(), key=lambda m: min_value(game.forecast_move(m), depth-1))  
 
 
 class AlphaBetaPlayer(IsolationPlayer):
@@ -365,13 +374,15 @@ class AlphaBetaPlayer(IsolationPlayer):
         self.time_left = time_left       
         
         # TODO: finish this function!
-        best_move = (-1, -1)
+        #best_move = (-1, -1)
+        # Set best_move to (-1, -1) if no moves are available, or to the first move if moves are available
+        best_move = (-1, -1) if not game.get_legal_moves() else game.get_legal_moves()[0]
 
         try:
             # The try/except block will automatically catch the exception
             # raised when the timer is about to expire.
             # Create counter d and search alphabeta one level at a time
-            d = 0
+            d = 1
             while d < float("inf"):
                 best_move = self.alphabeta(game, d)
                 d += 1  
@@ -484,8 +495,9 @@ class AlphaBetaPlayer(IsolationPlayer):
             return value        
         
         # Return (-1, -1) if there are no legal moves
-        if not game.get_legal_moves():
-            return (-1, -1)
+        #if not game.get_legal_moves():
+        #    return (-1, -1)
+        best_move = (-1, -1) if not game.get_legal_moves() else game.get_legal_moves()[0]
         
         # Forecast the best move
         best_score = float("-inf")
