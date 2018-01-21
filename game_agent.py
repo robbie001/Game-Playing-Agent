@@ -42,19 +42,29 @@ def custom_score(game, player):
     
     # Reward the center position as the first move if game agent is the first player
     center_reward = 0
-    if game.move_count == 0 and game.get_player_location(player) == (game.width//2, game.height//2):
+    my_pos = game.get_player_location(player)
+    if game.move_count == 0 and my_pos == (game.width//2, game.height//2):
         center_reward += 5
+        
+    # Reward a position one legal move away from opponent's position
+    block_reward = 0
+    opp_pos = game.get_player_location(game.get_opponent(player))
+    jumps = [(1, -2), (1, 2), (-1, 2), (-1, -2), (2, -1), (2, 1), (-2, -1), (-2, 1)]
+
+    for jump in jumps:
+        if (jump[0] + opp_pos[0], jump[1] + opp_pos[1]) == my_pos:
+            block_reward += 1
+            break            
     
     own_moves = len(game.get_legal_moves(player))
     opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
     
     # Create an aggressive game beginning:
     if game.move_count <= 6:
-        return float(own_moves - 2 * opp_moves + center_reward)
+        return float(own_moves - 2 * opp_moves + center_reward + block_reward)
     else:
-        return float(own_moves - opp_moves)
+        return float(own_moves - opp_moves + block_reward)
     
-    #raise NotImplementedError
 
 
 def custom_score_2(game, player):
@@ -85,20 +95,25 @@ def custom_score_2(game, player):
     if game.is_loser(player) or game.is_winner(player):
         return game.utility(player)
     
-    # Reward a position that limits opponents moves
+    # Reward a position that would block one of the opponent's moves
     block_reward = 0
-    opp_pos = game.get_player_location(game.get_opponent(player))
+    my_pos = game.get_player_location(player)
     jumps = [(1, -2), (1, 2), (-1, 2), (-1, -2), (2, -1), (2, 1), (-2, -1), (-2, 1)]
+    
+    opp_legal_moves = game.get_legal_moves(game.get_opponent(player))
 
     for jump in jumps:
-        if (jump[0] + opp_pos[0], jump[1] + opp_pos[1]) == game.get_player_location(player):
+        if (jump[0] + my_pos[0], jump[1] + my_pos[1]) in opp_legal_moves:
             block_reward += 1
-            break            
+            # Create a more aggressive block for early games of 4 or less
+            #block_reward += 2 if game.move_count <= 4 else 1
+            #break
     
-    own_moves = len(game.get_legal_moves(player))
-    opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
+    #own_moves = len(game.get_legal_moves(player))
+    #opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
     
-    return float(own_moves - opp_moves + block_reward)
+    #return float(own_moves - opp_moves + block_reward)
+    return block_reward
 
 
 def custom_score_3(game, player):
@@ -128,30 +143,43 @@ def custom_score_3(game, player):
     # Return inf if player has won or -inf if player has lost the game  
     if game.is_loser(player) or game.is_winner(player):
         return game.utility(player)
-
+    
+    # Get the positions and legal moves of the agent and the opponent
     opp_pos = game.get_player_location(game.get_opponent(player))
     my_pos = game.get_player_location(player)
 
     own_moves = len(game.get_legal_moves(player))
     opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
     
-    # Reward if the game agent is the first player and stays away from opponent
-    far_reward = 0
-    if game.move_count % 2 ==0:
-        if opp_pos[0] + 2 < my_pos[0] < game.width or opp_pos[0] - 2 > my_pos[0] >= 0 or opp_pos[1] + 2 < my_pos[1] < game.height or opp_pos[1] - 2 > my_pos[1] >= 0:
-            far_reward += 1
+    # Reward if the game agent is the second player and stays away from opponent
+    #far_reward = 0
+    #if game.move_count % 2 == 1:
+    #    if opp_pos[0] + 2 < my_pos[0] < game.width or opp_pos[0] - 2 > my_pos[0] >= 0 or opp_pos[1] + 2 < my_pos[1] < game.height or opp_pos[1] - 2 > my_pos[1] >= 0:
+    #        far_reward += 1
 
-    # Reward if the game agent is the second player and sticks close to opponent
+    # Reward if the game agent is the first player and sticks close to opponent
     close_reward = 0        
-    if game.move_count % 2 == 1:
+    if game.move_count % 2 == 0:
         close_moves = [(1, -1), (1, 0), (1, 1), (0, 1), (0, -1), (-1, 1), (-1, 0), (-1, -1)]
         for move in close_moves:
             if (opp_pos[0] + move[0], opp_pos[1] + move[1]) == my_pos:
                 close_reward += 1
                 break
+                
+    # Reward if the second player and blocks one of the opponent's moves
+    block_reward = 0
+    if game.move_count % 2 == 1:
+        my_pos = game.get_player_location(player)
+        jumps = [(1, -2), (1, 2), (-1, 2), (-1, -2), (2, -1), (2, 1), (-2, -1), (-2, 1)]
+        opp_legal_moves = game.get_legal_moves(game.get_opponent(player))
+
+        for jump in jumps:
+            if (jump[0] + my_pos[0], jump[1] + my_pos[1]) in opp_legal_moves:
+                block_reward += 1
+                break
     
     # Return the difference of remaining moves if there are no close or far moves.
-    return float(own_moves - opp_moves + far_reward + close_reward)
+    return float(own_moves - opp_moves + close_reward + block_reward)
 
 class IsolationPlayer:
     """Base class for minimax and alphabeta agents -- this class is never
@@ -290,7 +318,7 @@ class MinimaxPlayer(IsolationPlayer):
                 raise SearchTimeout()
             
             # Return the score heuristic if there are no legal moves or the search depth is reached
-            if not game_state.get_legal_moves() or depth == 0:
+            if depth == 0:
                 return self.score(game_state, self)
             
             value = float("inf")            
@@ -311,7 +339,7 @@ class MinimaxPlayer(IsolationPlayer):
                 raise SearchTimeout()
             
             # Return the score heuristic if the active player losses or the search depth reached                
-            if not game_state.get_legal_moves() or depth == 0:
+            if depth == 0:
                 return self.score(game_state, self)            
             
             value = float("-inf")            
@@ -323,16 +351,14 @@ class MinimaxPlayer(IsolationPlayer):
         if not game.get_legal_moves():
             return (-1, -1)
         
-        # Set best move to to first legal move
+        # Set best move to first legal move in case of timeout
         best_move = game.get_legal_moves()[0]
         
         try:
             best_move = max(game.get_legal_moves(), key=lambda m: min_value(game.forecast_move(m), depth-1))
             return best_move
         except SearchTimeout:
-            return best_move
-        
-        #return max(game.get_legal_moves(), key=lambda m: min_value(game.forecast_move(m), depth-1))  
+            return best_move  
 
 
 class AlphaBetaPlayer(IsolationPlayer):
@@ -374,7 +400,6 @@ class AlphaBetaPlayer(IsolationPlayer):
         self.time_left = time_left       
         
         # TODO: finish this function!
-        #best_move = (-1, -1)
         # Set best_move to (-1, -1) if no moves are available, or to the first move if moves are available
         best_move = (-1, -1) if not game.get_legal_moves() else game.get_legal_moves()[0]
 
@@ -459,7 +484,7 @@ class AlphaBetaPlayer(IsolationPlayer):
                 raise SearchTimeout()
             
             # Return the score heuristic if there are no legal moves or the search depth reached                
-            if not game_state.get_legal_moves() or depth == 0:
+            if depth == 0:
                 return self.score(game_state, self)            
             
             value = float("-inf")            
@@ -483,7 +508,7 @@ class AlphaBetaPlayer(IsolationPlayer):
                 raise SearchTimeout()
             
             # Return the score heuristic if there are no legal moves or the search depth is reached
-            if not game_state.get_legal_moves() or depth == 0:
+            if depth == 0:
                 return self.score(game_state, self)
             
             value = float("inf")                        
@@ -495,13 +520,14 @@ class AlphaBetaPlayer(IsolationPlayer):
             return value        
         
         # Return (-1, -1) if there are no legal moves
-        #if not game.get_legal_moves():
-        #    return (-1, -1)
-        best_move = (-1, -1) if not game.get_legal_moves() else game.get_legal_moves()[0]
+        if not game.get_legal_moves():
+            return (-1, -1)
+        
+        # Set the best move to the first legal move in case of timeout
+        best_move = game.get_legal_moves()[0]
         
         # Forecast the best move
         best_score = float("-inf")
-        best_move = None
         for move in game.get_legal_moves():
             value = min_value(game.forecast_move(move), depth-1, alpha, beta)
             if value > best_score:
