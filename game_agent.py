@@ -11,13 +11,11 @@ class SearchTimeout(Exception):
 
 
 def custom_score(game, player):
-    """Calculate the heuristic value of a game state from the point of view
-    of the given player.
-
-    This should be the best heuristic function for your project submission.
-
-    Note: this function should be called from within a Player instance as
-    `self.score()` -- you should not need to call this function directly.
+    """In the early/mid stages of the game, this outputs a score of the number 
+    of agent moves minus two times the number of opponents move plus a reward 
+    for occupying the center score on the first move. In the later stages of the
+    game it outputs a score equal to the difference in the number of moves 
+    available to the two players.
 
     Parameters
     ----------
@@ -44,35 +42,21 @@ def custom_score(game, player):
     center_reward = 0
     my_pos = game.get_player_location(player)
     if game.move_count == 0 and my_pos == (game.width//2, game.height//2):
-        center_reward += 5
-        
-    # Reward a position one legal move away from opponent's position
-    block_reward = 0
-    opp_pos = game.get_player_location(game.get_opponent(player))
-    jumps = [(1, -2), (1, 2), (-1, 2), (-1, -2), (2, -1), (2, 1), (-2, -1), (-2, 1)]
-
-    for jump in jumps:
-        if (jump[0] + opp_pos[0], jump[1] + opp_pos[1]) == my_pos:
-            block_reward += 1
-            break            
+        center_reward += 5         
     
     own_moves = len(game.get_legal_moves(player))
     opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
     
     # Create an aggressive game beginning:
     if game.move_count <= 6:
-        return float(own_moves - 2 * opp_moves + center_reward + block_reward)
+        return float(own_moves - 2 * opp_moves + center_reward)
     else:
-        return float(own_moves - opp_moves + block_reward)
+        return float(own_moves - opp_moves)
     
 
-
 def custom_score_2(game, player):
-    """Calculate the heuristic value of a game state from the point of view
-    of the given player.
-
-    Note: this function should be called from within a Player instance as
-    `self.score()` -- you should not need to call this function directly.
+    """Outputs a score equal to the number of agent moves minus the number of
+    opponent moves plus a reward for blocking the opponent's move.
 
     Parameters
     ----------
@@ -95,7 +79,7 @@ def custom_score_2(game, player):
     if game.is_loser(player) or game.is_winner(player):
         return game.utility(player)
     
-    # Reward a position that would block one of the opponent's moves
+    # Reward a position that limits opponent's moves
     block_reward = 0
     my_pos = game.get_player_location(player)
     jumps = [(1, -2), (1, 2), (-1, 2), (-1, -2), (2, -1), (2, 1), (-2, -1), (-2, 1)]
@@ -104,24 +88,22 @@ def custom_score_2(game, player):
 
     for jump in jumps:
         if (jump[0] + my_pos[0], jump[1] + my_pos[1]) in opp_legal_moves:
-            block_reward += 1
             # Create a more aggressive block for early games of 4 or less
-            #block_reward += 2 if game.move_count <= 4 else 1
-            #break
+            block_reward += 2 if game.move_count <= 4 else 1 
+            break            
     
-    #own_moves = len(game.get_legal_moves(player))
-    #opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
+    own_moves = len(game.get_legal_moves(player))
+    opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
     
-    #return float(own_moves - opp_moves + block_reward)
-    return block_reward
+    return float(own_moves - opp_moves + block_reward)
+
 
 
 def custom_score_3(game, player):
-    """Calculate the heuristic value of a game state from the point of view
-    of the given player.
-
-    Note: this function should be called from within a Player instance as
-    `self.score()` -- you should not need to call this function directly.
+    """Outputs a score equal to the number of agent moves minus the number of
+    opponent moves plus a reward for staying near the opponent when agent is 
+    the first player plus a reward for staying away from the opponent when
+    the agent is the second player.
 
     Parameters
     ----------
@@ -143,8 +125,7 @@ def custom_score_3(game, player):
     # Return inf if player has won or -inf if player has lost the game  
     if game.is_loser(player) or game.is_winner(player):
         return game.utility(player)
-    
-    # Get the positions and legal moves of the agent and the opponent
+
     opp_pos = game.get_player_location(game.get_opponent(player))
     my_pos = game.get_player_location(player)
 
@@ -152,10 +133,11 @@ def custom_score_3(game, player):
     opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
     
     # Reward if the game agent is the second player and stays away from opponent
-    #far_reward = 0
-    #if game.move_count % 2 == 1:
-    #    if opp_pos[0] + 2 < my_pos[0] < game.width or opp_pos[0] - 2 > my_pos[0] >= 0 or opp_pos[1] + 2 < my_pos[1] < game.height or opp_pos[1] - 2 > my_pos[1] >= 0:
-    #        far_reward += 1
+    far_reward = 0
+    if game.move_count % 2 == 1:
+        if opp_pos[0] + 2 < my_pos[0] < game.width or opp_pos[0] - 2 > my_pos[0] >= 0 \
+        or opp_pos[1] + 2 < my_pos[1] < game.height or opp_pos[1] - 2 > my_pos[1] >= 0:
+            far_reward += 1
 
     # Reward if the game agent is the first player and sticks close to opponent
     close_reward = 0        
@@ -165,21 +147,10 @@ def custom_score_3(game, player):
             if (opp_pos[0] + move[0], opp_pos[1] + move[1]) == my_pos:
                 close_reward += 1
                 break
-                
-    # Reward if the second player and blocks one of the opponent's moves
-    block_reward = 0
-    if game.move_count % 2 == 1:
-        my_pos = game.get_player_location(player)
-        jumps = [(1, -2), (1, 2), (-1, 2), (-1, -2), (2, -1), (2, 1), (-2, -1), (-2, 1)]
-        opp_legal_moves = game.get_legal_moves(game.get_opponent(player))
-
-        for jump in jumps:
-            if (jump[0] + my_pos[0], jump[1] + my_pos[1]) in opp_legal_moves:
-                block_reward += 1
-                break
     
     # Return the difference of remaining moves if there are no close or far moves.
-    return float(own_moves - opp_moves + close_reward + block_reward)
+    return float(own_moves - opp_moves + far_reward + close_reward)
+
 
 class IsolationPlayer:
     """Base class for minimax and alphabeta agents -- this class is never
@@ -408,7 +379,7 @@ class AlphaBetaPlayer(IsolationPlayer):
             # raised when the timer is about to expire.
             # Create counter d and search alphabeta one level at a time
             d = 1
-            while d < float("inf"):
+            while time_left() > self.TIMER_THRESHOLD:
                 best_move = self.alphabeta(game, d)
                 d += 1  
             #return self.alphabeta(game, self.search_depth)
